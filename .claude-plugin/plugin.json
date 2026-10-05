@@ -1,0 +1,14 @@
+{
+  "name": "lazyreview",
+  "version": "0.2.0",
+  "description": "Lazygit-style review pane for tech leads: review local changes or a teammate's pull request, with a brief, quick checks, inline AI findings, viewed marks, asks vs diff, and a verdict posted to GitHub",
+  "author": { "name": "Matheus Buniotto" },
+  "userConfig": {
+    "model": {
+      "type": "string",
+      "title": "Review model",
+      "description": "Model alias or id for the AI review and the expectations check",
+      "default": "sonnet"
+    }
+  }
+}

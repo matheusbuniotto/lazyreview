@@ -1,0 +1,12 @@
+{
+  "name": "lazyreview",
+  "owner": { "name": "Matheus Buniotto" },
+  "description": "lazyreview, a Claude Code mod for reviewing changes and pull requests",
+  "plugins": [
+    {
+      "name": "lazyreview",
+      "source": "./",
+      "description": "Lazygit-style review pane for tech leads: local changes or a teammate's pull request, quick checks, inline AI findings, verdict posted to GitHub"
+    }
+  ]
+}
