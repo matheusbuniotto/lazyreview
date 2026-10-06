@@ -6,10 +6,12 @@ const PATCH_BUDGET = 90_000
 export const BATCH_CHARS = 60_000
 const ASKS_BUDGET = 20_000
 const INTENT_BUDGET = 4_000
+const VISION_BUDGET = 4_000
 const MAX_FOCUS = 5
 
 export const SEVERITIES = ['bug', 'risk', 'nit', 'praise']
 export const VERDICTS = ['done', 'partial', 'missing', 'unclear']
+export const FITS = ['fits', 'drifts', 'unclear']
 
 export const RISKS = ['low', 'medium', 'high']
 const AI_VERDICTS = ['approve', 'comment', 'request_changes']
@@ -30,6 +32,15 @@ First list each concrete expectation from the user's requests (merge duplicates,
 Answer with JSON only, no prose and no code fence:
 {"items": [{"expectation": "<short imperative>", "verdict": "done|partial|missing|unclear", "evidence": "<file:line or empty>", "note": "<what is missing or why, one sentence, empty when done>"}],
  "extras": ["<a change in the diff nobody asked for, one line each>"]}`
+
+const VISION_SYSTEM = `
+The project also has a vision: what it is meant to be. Judge whether the diff keeps to it, for example a sample app growing a feature that does not belong in a sample, or a chat bot gaining a workflow with no chat. Add this key to the JSON:
+ "vision": {"fit": "fits|drifts|unclear", "note": "<when it drifts, how, one sentence; otherwise empty>"}`
+
+// The expectations prompt, with the vision question added when the project states one.
+export const expectSystem = (vision) => (vision ? EXPECT_SYSTEM + VISION_SYSTEM : EXPECT_SYSTEM)
+
+const visionBlock = (vision) => (vision ? `The project's vision:\n${vision.slice(0, VISION_BUDGET)}\n\n` : '')
 
 // Every changed file's stats, then as much of each diff as fits: small files whole,
 // large ones cut to an even share of what is left. Generated files are listed only.
@@ -97,16 +108,16 @@ export function reviewPrompt(batch, part, parts, intent = '') {
   return `${claim}Review this diff${split}.\n\n${batch}`
 }
 
-export function expectPrompt(asks, files, heading = "The user's requests, oldest first") {
+export function expectPrompt(asks, files, heading = "The user's requests, oldest first", vision = '') {
   const requests = asks.join('\n---\n').slice(-ASKS_BUDGET)
-  return `${heading}:\n${requests}\n\nThe diff:\n\n${patchFor(files)}`
+  return `${visionBlock(vision)}${heading}:\n${requests}\n\nThe diff:\n\n${patchFor(files)}`
 }
 
 // The same check asked of a fork of the session, which already holds the whole
 // conversation: corrections, answers to Claude's questions, and what Claude claimed.
-export function expectForkPrompt(extras, files) {
+export function expectForkPrompt(extras, files, vision = '') {
   const own = extras.length ? `\n\nI also expect:\n${extras.map((x) => `- ${x}`).join('\n')}` : ''
-  return `Do not use any tools. Act as a reviewer of this conversation's work.\n\n${EXPECT_SYSTEM}\n\nJudge what I asked for in this conversation against the diff below, not against what you said you did.${own}\n\nThe diff:\n\n${patchFor(files)}`
+  return `Do not use any tools. Act as a reviewer of this conversation's work.\n\n${expectSystem(vision)}\n\n${visionBlock(vision)}Judge what I asked for in this conversation against the diff below, not against what you said you did.${own}\n\nThe diff:\n\n${patchFor(files)}`
 }
 
 // The first JSON object in a reply, tolerating a code fence or stray prose.
@@ -199,7 +210,8 @@ export function parseExpectations(text) {
       note: clean(item.note).slice(0, 500),
     }))
   const extras = (Array.isArray(json.extras) ? json.extras : []).map((x) => clean(x).slice(0, 300)).filter(Boolean)
-  return { items, extras }
+  const fit = json.vision && FITS.includes(json.vision.fit) ? { fit: json.vision.fit, note: clean(json.vision.note).slice(0, 500) } : null
+  return { items, extras, vision: fit }
 }
 
 // The user's own words from the transcript: prompts, not tool results or command echoes.

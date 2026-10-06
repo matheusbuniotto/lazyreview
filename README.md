@@ -111,6 +111,8 @@ Facts about the whole change are listed on the Overview:
 
 When the AI raises the same point on the same line, it is shown once.
 
+**Vision.** Commit a `VISION.md` at the repo root saying what the project is meant to be (a sample app, a chat bot, a CLI with no UI…). The Expected check then also asks whether the change keeps to it, and tab 3 shows a red **Drifts from VISION.md** alert when it does not, such as a chat bot gaining a workflow with no chat. For a PR the vision is read from the base branch, so a PR cannot rewrite its own. Without a `VISION.md` nothing changes.
+
 Expectations you add on tab 3 are standing ones: they are saved and checked on every review.
 
 ## Big changes

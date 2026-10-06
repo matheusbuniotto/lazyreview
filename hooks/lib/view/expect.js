@@ -21,6 +21,12 @@ export function expectTab(el, model, act) {
     rows.push(Box({ marginTop: 1, children: [Button({ key: 'run-expect', label: 'Run the check', hotkey: 'e', variant: 'primary', onPress: act.runExpect })] }))
   }
 
+  if (expect.vision?.fit === 'drifts') {
+    rows.push(Box({ key: 'vision', flexDirection: 'column', marginBottom: 1, children: [
+      Text({ bold: true, color: 'red', children: '⚠ Drifts from VISION.md' }),
+      Text({ wrap: 'wrap', children: expect.vision.note }),
+    ] }))
+  }
   if (expect.items.length) {
     rows.push(progress(el, expect.items, model.columns))
     rows.push(...expect.items.map((item, i) => expectRow(el, item, i)))

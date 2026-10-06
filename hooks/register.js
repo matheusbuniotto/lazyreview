@@ -18,11 +18,11 @@ import {
   totals,
 } from './lib/diff.js'
 import {
-  EXPECT_SYSTEM,
   MERGE_SYSTEM,
   REVIEW_SYSTEM,
   applyMerge,
   expectForkPrompt,
+  expectSystem,
   expectPrompt,
   fixPrompt,
   mergePrompt,
@@ -59,7 +59,7 @@ const REFRESH_DEBOUNCE_MS = 600
 const SCROLL_AFTER_REDRAW_MS = 120
 
 const idleReview = () => ({ status: 'idle', comments: [], summary: '', risk: '', verdict: '', focus: [], error: '', startedAt: 0, fileCount: 0, stamp: '', parts: 0, partsDone: 0, notes: [] })
-const idleExpect = () => ({ status: 'idle', items: [], extras: [], error: '', startedAt: 0 })
+const idleExpect = () => ({ status: 'idle', items: [], extras: [], vision: null, error: '', startedAt: 0 })
 const idleVerdict = () => ({ event: '', message: '', status: 'idle', error: '', url: '' })
 
 // Everything one review accumulates, kept per source (the working tree, or a PR
@@ -545,6 +545,12 @@ async function linkedIssues($) {
   }
 }
 
+// The project's VISION.md as committed (a PR's base, so a PR cannot rewrite its own vision).
+async function projectVision($) {
+  const done = await git($, ['show', `${prNumber ? pr.baseSha : 'HEAD'}:VISION.md`])
+  return done.exitCode === 0 ? done.stdout.trim() : ''
+}
+
 async function runExpect($) {
   const mine = desk
   const files = visibleFiles()
@@ -554,19 +560,21 @@ async function runExpect($) {
   mine.expect = { ...idleExpect(), status: 'busy', startedAt: await $.clock.now() }
   startTicker($)
   try {
+    const vision = await projectVision($)
+    const system = expectSystem(vision)
     let text
     if (pr) {
       const asks = [`${pr.title}\n\n${pr.body}`.trim(), ...(await linkedIssues($)), ...own]
-      text = await complete($, mine.abort.signal, EXPECT_SYSTEM, expectPrompt(asks, files, 'The pull request description and linked issues'))
+      text = await complete($, mine.abort.signal, system, expectPrompt(asks, files, 'The pull request description and linked issues', vision))
     } else {
-      text = await forkSession($, expectForkPrompt(extraExpectations, files))
+      text = await forkSession($, expectForkPrompt(extraExpectations, files, vision))
       if (text === null) {
         const asks = [...userAsks(await $.session.messages()), ...own]
         if (!asks.length) {
           mine.expect = { ...idleExpect(), status: 'empty' }
           return
         }
-        text = await complete($, mine.abort.signal, EXPECT_SYSTEM, expectPrompt(asks, files))
+        text = await complete($, mine.abort.signal, system, expectPrompt(asks, files, undefined, vision))
       }
     }
     if (run !== mine.run) return
